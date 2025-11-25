@@ -6,6 +6,7 @@ const panel = document.getElementById('panel');
 const promptEl = document.getElementById('prompt');
 const responsesEl = document.getElementById('responses');
 const feedbackEl = document.getElementById('feedback');
+const speechBubble = document.getElementById('speech');
 const customInput = document.getElementById('customResponse');
 const submitCustom = document.getElementById('submitCustom');
 const closePanel = document.getElementById('closePanel');
@@ -13,6 +14,8 @@ const closePanel = document.getElementById('closePanel');
 const hearts = 4;
 let health = hearts;
 let activeMushroom = null;
+let awaitingJump = false;
+let jumping = false;
 
 const responseBank = [
   {
@@ -67,14 +70,16 @@ function renderMushrooms() {
 }
 
 function moveDino() {
+  if (awaitingJump && !jumping) return;
   if (pressed.has('ArrowLeft')) dino.x -= dino.speed;
   if (pressed.has('ArrowRight')) dino.x += dino.speed;
   dino.x = Math.max(0, Math.min(dino.x, gameArea.clientWidth - dino.width));
   dinoEl.style.setProperty('--x', `${dino.x}px`);
+  speechBubble.style.setProperty('--x', `${dino.x}px`);
 }
 
 function checkCollision() {
-  if (activeMushroom) return;
+  if (activeMushroom || awaitingJump) return;
   const dinoRect = {
     x: dino.x + 40,
     width: dino.width,
@@ -89,10 +94,14 @@ function checkCollision() {
 
 function openPanel(mushroom) {
   activeMushroom = mushroom;
+  awaitingJump = true;
   panel.hidden = false;
   panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
   promptEl.textContent = 'Dino: “Hey mushroom friend! Want to come to my party on Saturday?”';
   feedbackEl.textContent = '';
+  speechBubble.textContent = 'Hey mushroom friend! Want to come to my party on Saturday?';
+  speechBubble.classList.add('visible');
+  speechBubble.style.setProperty('--x', `${dino.x}px`);
   responsesEl.innerHTML = '';
   responseBank.forEach((response) => {
     const btn = document.createElement('button');
@@ -127,16 +136,25 @@ function applyScore(score, note, responseText = null) {
   feedbackEl.textContent = `${tone} ${note}` + (responseText ? ` (You wrote: "${responseText}")` : '');
   renderHearts();
   renderMushrooms();
-  setTimeout(closeInteraction, 900);
+  feedbackEl.insertAdjacentHTML('beforeend', ' Press ↑ to jump over and continue.');
+  checkCompletion();
 }
 
-function closeInteraction() {
-  panel.hidden = true;
-  activeMushroom = null;
+function checkCompletion() {
   if (mushrooms.every((m) => m.interacted)) {
     feedbackEl.innerHTML += ` <span class="summary">All invites done! Dino's feeling ${health >= hearts / 2 ? 'encouraged' : 'a bit sad'}.</span>`;
     panel.hidden = false;
   }
+}
+
+function closeInteraction() {
+  feedbackEl.textContent = 'Skipped this invite. Press ↑ to jump over and continue.';
+  if (activeMushroom) {
+    activeMushroom.interacted = true;
+    renderMushrooms();
+    checkCompletion();
+  }
+  panel.hidden = true;
 }
 
 function loop() {
@@ -149,11 +167,36 @@ window.addEventListener('keydown', (e) => {
   if (['ArrowLeft', 'ArrowRight'].includes(e.key)) {
     pressed.add(e.key);
   }
+  if (e.key === 'ArrowUp' && awaitingJump && !jumping) {
+    startJump();
+  }
 });
 
 window.addEventListener('keyup', (e) => {
   pressed.delete(e.key);
 });
+
+function startJump() {
+  jumping = true;
+  dinoEl.classList.add('jumping');
+  setTimeout(() => {
+    dinoEl.classList.remove('jumping');
+    finishJump();
+  }, 550);
+}
+
+function finishJump() {
+  jumping = false;
+  awaitingJump = false;
+  speechBubble.classList.remove('visible');
+  panel.hidden = true;
+  if (activeMushroom && !activeMushroom.interacted) {
+    activeMushroom.interacted = true;
+    renderMushrooms();
+    checkCompletion();
+  }
+  activeMushroom = null;
+}
 
 submitCustom.addEventListener('click', evaluateCustom);
 closePanel.addEventListener('click', closeInteraction);
