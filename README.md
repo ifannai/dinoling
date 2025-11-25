@@ -7,5 +7,6 @@ A tiny HTML/JS activity where a dinosaur walks left/right to invite mushrooms to
 2. Use the ◀ ▶ arrow keys to move the dinosaur.
 3. When you bump into a mushroom, a speech bubble shows Dino's invite; choose/type a refusal.
 4. Dino stops at each mushroom—press ↑ to jump over and continue after responding.
+5. When you bump into a mushroom, pick one of the refusal options or type your own reply to see the feedback.
 
 No build steps are required.
