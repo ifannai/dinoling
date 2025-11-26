@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dino Party Invites</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="layout">
+    <header class="hud">
+      <div class="title">Dino Party Invites</div>
+      <div class="hearts" id="hearts" aria-label="Dinosaur hearts"></div>
+      <div class="instructions">Use ◀ ▶ to walk and spawn mushrooms from the right. Dino stops at each invite—answer, then press ↑ to jump over.</div>
+    </header>
+    <section class="game" id="game" aria-label="Game area">
+      <div class="dino" id="dino" aria-label="Dinosaur" role="figure"></div>
+      <div class="speech" id="speech" aria-live="polite"></div>
+      <div class="mushroom-list" id="mushroom-container"></div>
+    </section>
+    <section class="panel" id="panel" hidden>
+      <div class="prompt" id="prompt"></div>
+      <div class="responses" id="responses"></div>
+      <label class="free-input">
+        Or type your own response:
+        <input type="text" id="customResponse" placeholder="Type a refusal" />
+      </label>
+      <div class="panel-actions">
+        <button id="submitCustom" type="button">Submit typed reply</button>
+        <button id="closePanel" type="button">Why answer matters</button>
+      </div>
+      <div class="feedback" id="feedback"></div>
+    </section>
+  </main>
+  <script src="game.js"></script>
+</body>
+</html>
