@@ -47,7 +47,7 @@ const dino = {
   width: 48,
 };
 
-const mushroomSpeed = 2.4;
+const mushroomSpeed = 1.8;
 
 const pressed = new Set();
 
@@ -91,6 +91,10 @@ function moveDino() {
   speechBubble.style.setProperty('--x', `${dino.x}px`);
 }
 
+function getStopX() {
+  return 40 + dino.x + dino.width + 6;
+}
+
 function spawnMushroom() {
   const offset = 60 + Math.random() * 140;
   mushrooms.push({
@@ -112,14 +116,24 @@ function updateMushrooms() {
     }
   }
 
+  let haltedForInvite = null;
   mushrooms = mushrooms
     .map((m) => {
       if (activeMushroom && m.id === activeMushroom.id && awaitingResponse) {
         return m;
       }
+      const nextX = m.x - mushroomSpeed;
+      if (!haltedForInvite && !awaitingResponse && !m.interacted) {
+        const stopX = getStopX();
+        if (nextX <= stopX) {
+          const halted = { ...m, x: stopX };
+          haltedForInvite = halted;
+          return halted;
+        }
+      }
       return {
         ...m,
-        x: m.x - mushroomSpeed
+        x: nextX
       };
     })
     .filter((m) => m.x > -80 || (activeMushroom && m.id === activeMushroom.id));
@@ -129,6 +143,11 @@ function updateMushrooms() {
     if (updated) {
       activeMushroom = updated;
     }
+  }
+
+  if (haltedForInvite) {
+    activeMushroom = haltedForInvite;
+    openPanel(haltedForInvite);
   }
 
   renderMushrooms();
@@ -144,6 +163,8 @@ function checkCollision() {
     !m.interacted && Math.abs(m.x - dinoRect.x) < dinoRect.width
   );
   if (hit) {
+    hit.x = Math.min(hit.x, getStopX());
+    mushrooms = mushrooms.map((m) => (m.id === hit.id ? hit : m));
     openPanel(hit);
   }
 }
