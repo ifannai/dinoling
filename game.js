@@ -14,8 +14,11 @@ const closePanel = document.getElementById('closePanel');
 const hearts = 4;
 let health = hearts;
 let activeMushroom = null;
-let awaitingJump = false;
+let awaitingResponse = false;
+let canAdvance = false;
 let jumping = false;
+let spawnCounter = 0;
+let spawnTarget = 120;
 
 const responseBank = [
   {
@@ -35,17 +38,16 @@ const responseBank = [
   }
 ];
 
-const mushrooms = [
-  { id: 1, x: 220, interacted: false },
-  { id: 2, x: 460, interacted: false },
-  { id: 3, x: 720, interacted: false }
-];
+let mushrooms = [];
+let nextMushroomId = mushrooms.length + 1;
 
 const dino = {
   x: 40,
   speed: 6,
   width: 48,
 };
+
+const mushroomSpeed = 2.4;
 
 const pressed = new Set();
 
@@ -65,21 +67,75 @@ function renderMushrooms() {
     el.className = 'mushroom' + (m.interacted ? ' responded' : '');
     el.dataset.id = m.id;
     el.style.left = `${m.x}px`;
+    if (m.replyText) {
+      const reply = document.createElement('div');
+      reply.className = 'reply-bubble';
+      reply.textContent = m.replyText;
+      el.appendChild(reply);
+    }
     mushroomContainer.appendChild(el);
   });
 }
 
 function moveDino() {
-  if (awaitingJump && !jumping) return;
-  if (pressed.has('ArrowLeft')) dino.x -= dino.speed;
-  if (pressed.has('ArrowRight')) dino.x += dino.speed;
+  const movingLeft = pressed.has('ArrowLeft');
+  const movingRight = pressed.has('ArrowRight');
+  if (movingLeft) dino.x -= dino.speed;
+  if (movingRight) dino.x += dino.speed;
+  if (awaitingResponse && activeMushroom) {
+    const stopX = activeMushroom.x - dino.width - 6;
+    dino.x = Math.min(dino.x, stopX);
+  }
   dino.x = Math.max(0, Math.min(dino.x, gameArea.clientWidth - dino.width));
   dinoEl.style.setProperty('--x', `${dino.x}px`);
   speechBubble.style.setProperty('--x', `${dino.x}px`);
 }
 
+function spawnMushroom() {
+  const offset = 60 + Math.random() * 140;
+  mushrooms.push({
+    id: nextMushroomId++,
+    x: gameArea.clientWidth + offset,
+    interacted: false,
+    replyText: ''
+  });
+  spawnTarget = 90 + Math.floor(Math.random() * 120);
+  spawnCounter = 0;
+}
+
+function updateMushrooms() {
+  const walking = pressed.has('ArrowLeft') || pressed.has('ArrowRight');
+  if (walking) {
+    spawnCounter += 1;
+    if (spawnCounter >= spawnTarget) {
+      spawnMushroom();
+    }
+  }
+
+  mushrooms = mushrooms
+    .map((m) => {
+      if (activeMushroom && m.id === activeMushroom.id && awaitingResponse) {
+        return m;
+      }
+      return {
+        ...m,
+        x: m.x - mushroomSpeed
+      };
+    })
+    .filter((m) => m.x > -80 || (activeMushroom && m.id === activeMushroom.id));
+
+  if (activeMushroom) {
+    const updated = mushrooms.find((m) => m.id === activeMushroom.id);
+    if (updated) {
+      activeMushroom = updated;
+    }
+  }
+
+  renderMushrooms();
+}
+
 function checkCollision() {
-  if (activeMushroom || awaitingJump) return;
+  if (activeMushroom || awaitingResponse) return;
   const dinoRect = {
     x: dino.x + 40,
     width: dino.width,
@@ -94,7 +150,8 @@ function checkCollision() {
 
 function openPanel(mushroom) {
   activeMushroom = mushroom;
-  awaitingJump = true;
+  awaitingResponse = true;
+  canAdvance = false;
   panel.hidden = false;
   panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
   promptEl.textContent = 'Dino: “Hey mushroom friend! Want to come to my party on Saturday?”';
@@ -114,7 +171,7 @@ function openPanel(mushroom) {
 }
 
 function evaluateResponse(response) {
-  applyScore(response.score, response.note);
+  applyScore(response.score, response.note, response.text);
 }
 
 function evaluateCustom() {
@@ -132,6 +189,8 @@ function evaluateCustom() {
 function applyScore(score, note, responseText = null) {
   health = Math.min(hearts, Math.max(0, health + score));
   activeMushroom.interacted = true;
+  activeMushroom.replyText = responseText || 'Thanks for letting me know!';
+  canAdvance = true;
   const tone = score > 0 ? '🌟 That felt kind!' : '💔 Ouch!';
   feedbackEl.textContent = `${tone} ${note}` + (responseText ? ` (You wrote: "${responseText}")` : '');
   renderHearts();
@@ -141,24 +200,19 @@ function applyScore(score, note, responseText = null) {
 }
 
 function checkCompletion() {
-  if (mushrooms.every((m) => m.interacted)) {
+  if (mushrooms.length > 0 && mushrooms.every((m) => m.interacted)) {
     feedbackEl.innerHTML += ` <span class="summary">All invites done! Dino's feeling ${health >= hearts / 2 ? 'encouraged' : 'a bit sad'}.</span>`;
     panel.hidden = false;
   }
 }
 
 function closeInteraction() {
-  feedbackEl.textContent = 'Skipped this invite. Press ↑ to jump over and continue.';
-  if (activeMushroom) {
-    activeMushroom.interacted = true;
-    renderMushrooms();
-    checkCompletion();
-  }
-  panel.hidden = true;
+  feedbackEl.textContent = 'Please answer so the mushroom can reply before you jump over.';
 }
 
 function loop() {
   moveDino();
+  updateMushrooms();
   checkCollision();
   requestAnimationFrame(loop);
 }
@@ -167,7 +221,7 @@ window.addEventListener('keydown', (e) => {
   if (['ArrowLeft', 'ArrowRight'].includes(e.key)) {
     pressed.add(e.key);
   }
-  if (e.key === 'ArrowUp' && awaitingJump && !jumping) {
+  if (e.key === 'ArrowUp' && !jumping) {
     startJump();
   }
 });
@@ -187,15 +241,14 @@ function startJump() {
 
 function finishJump() {
   jumping = false;
-  awaitingJump = false;
-  speechBubble.classList.remove('visible');
-  panel.hidden = true;
-  if (activeMushroom && !activeMushroom.interacted) {
-    activeMushroom.interacted = true;
-    renderMushrooms();
-    checkCompletion();
+  if (activeMushroom && canAdvance) {
+    speechBubble.classList.remove('visible');
+    panel.hidden = true;
+    mushrooms = mushrooms.filter((m) => m.id !== activeMushroom.id);
+    activeMushroom = null;
+    awaitingResponse = false;
+    canAdvance = false;
   }
-  activeMushroom = null;
 }
 
 submitCustom.addEventListener('click', evaluateCustom);

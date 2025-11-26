@@ -4,9 +4,8 @@ A tiny HTML/JS activity where a dinosaur walks left/right to invite mushrooms to
 
 ## Run locally
 1. Open `index.html` in a modern browser (double-click or use a simple static server).
-2. Use the ◀ ▶ arrow keys to move the dinosaur.
-3. When you bump into a mushroom, a speech bubble shows Dino's invite; choose/type a refusal.
-4. Dino stops at each mushroom—press ↑ to jump over and continue after responding.
-5. When you bump into a mushroom, pick one of the refusal options or type your own reply to see the feedback.
+2. Use the ◀ ▶ arrow keys to walk; mushrooms slide in from the right as you move.
+3. When you bump into a mushroom, a speech bubble shows Dino's invite; choose/type a refusal so the mushroom can reply.
+4. After answering, press ↑ to jump over and continue. Dino can't pass a mushroom until it replies.
 
 No build steps are required.
