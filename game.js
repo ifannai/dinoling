@@ -17,8 +17,6 @@ let activeMushroom = null;
 let awaitingResponse = false;
 let canAdvance = false;
 let jumping = false;
-let spawnCounter = 0;
-let spawnTarget = 120;
 
 const responseBank = [
   {
@@ -39,7 +37,7 @@ const responseBank = [
 ];
 
 let mushrooms = [];
-let nextMushroomId = mushrooms.length + 1;
+let nextMushroomId = 1;
 
 const dino = {
   x: 40,
@@ -47,9 +45,20 @@ const dino = {
   width: 48,
 };
 
-const mushroomSpeed = 1.8;
-
 const pressed = new Set();
+
+function setupMushrooms() {
+  const width = gameArea.clientWidth;
+  const spacing = Math.max(180, Math.floor((width - 200) / 4));
+  const start = 160;
+  const count = 4;
+  mushrooms = Array.from({ length: count }, (_, i) => ({
+    id: nextMushroomId++,
+    x: Math.min(width - 80, start + i * spacing),
+    interacted: false,
+    replyText: ''
+  }));
+}
 
 function renderHearts() {
   heartsEl.innerHTML = '';
@@ -93,64 +102,6 @@ function moveDino() {
 
 function getStopX() {
   return 40 + dino.x + dino.width + 6;
-}
-
-function spawnMushroom() {
-  const offset = 60 + Math.random() * 140;
-  mushrooms.push({
-    id: nextMushroomId++,
-    x: gameArea.clientWidth + offset,
-    interacted: false,
-    replyText: ''
-  });
-  spawnTarget = 90 + Math.floor(Math.random() * 120);
-  spawnCounter = 0;
-}
-
-function updateMushrooms() {
-  const walking = pressed.has('ArrowLeft') || pressed.has('ArrowRight');
-  if (walking) {
-    spawnCounter += 1;
-    if (spawnCounter >= spawnTarget) {
-      spawnMushroom();
-    }
-  }
-
-  let haltedForInvite = null;
-  mushrooms = mushrooms
-    .map((m) => {
-      if (activeMushroom && m.id === activeMushroom.id && awaitingResponse) {
-        return m;
-      }
-      const nextX = m.x - mushroomSpeed;
-      if (!haltedForInvite && !awaitingResponse && !m.interacted) {
-        const stopX = getStopX();
-        if (nextX <= stopX) {
-          const halted = { ...m, x: stopX };
-          haltedForInvite = halted;
-          return halted;
-        }
-      }
-      return {
-        ...m,
-        x: nextX
-      };
-    })
-    .filter((m) => m.x > -80 || (activeMushroom && m.id === activeMushroom.id));
-
-  if (activeMushroom) {
-    const updated = mushrooms.find((m) => m.id === activeMushroom.id);
-    if (updated) {
-      activeMushroom = updated;
-    }
-  }
-
-  if (haltedForInvite) {
-    activeMushroom = haltedForInvite;
-    openPanel(haltedForInvite);
-  }
-
-  renderMushrooms();
 }
 
 function checkCollision() {
@@ -233,7 +184,6 @@ function closeInteraction() {
 
 function loop() {
   moveDino();
-  updateMushrooms();
   checkCollision();
   requestAnimationFrame(loop);
 }
@@ -269,12 +219,14 @@ function finishJump() {
     activeMushroom = null;
     awaitingResponse = false;
     canAdvance = false;
+    renderMushrooms();
   }
 }
 
 submitCustom.addEventListener('click', evaluateCustom);
 closePanel.addEventListener('click', closeInteraction);
 
+setupMushrooms();
 renderHearts();
 renderMushrooms();
 requestAnimationFrame(loop);
